@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright (C) 2007 - 2014 52°North Initiative for Geospatial Open Source
+ * ÔªøCopyright (C) 2007 - 2014 52¬∞North Initiative for Geospatial Open Source
  * Software GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -10,11 +10,11 @@
  * the following licenses, the combination of the program with the linked
  * library is not considered a "derivative work" of the program:
  *
- *       • Apache License, version 2.0
- *       • Apache Software License, version 1.0
- *       • GNU Lesser General Public License, version 3
- *       • Mozilla Public License, versions 1.0, 1.1 and 2.0
- *       • Common Development and Distribution License (CDDL), version 1.0
+ *       ‚Ä¢ Apache License, version 2.0
+ *       ‚Ä¢ Apache Software License, version 1.0
+ *       ‚Ä¢ GNU Lesser General Public License, version 3
+ *       ‚Ä¢ Mozilla Public License, versions 1.0, 1.1 and 2.0
+ *       ‚Ä¢ Common Development and Distribution License (CDDL), version 1.0
  *
  * Therefore the distribution of the program linked with libraries licensed
  * under the aforementioned licenses, is permitted by the copyright holders
@@ -24,8 +24,8 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
- * Public License for more details.
- */
+ * Public License for cobweb.m24package org.n52.WPSExample;**/
+
 package org.n52.wps.client;
 
 import java.io.IOException;
@@ -55,6 +55,9 @@ import org.slf4j.LoggerFactory;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
 import org.apache.xmlbeans.XmlOptions;
+import org.apache.xmlbeans.XmlString;
+import org.n52.wps.client.StaticDataHandlerRepository;
+import org.n52.wps.client.WPSClientException;
 import org.n52.wps.io.GeneratorFactory;
 import org.n52.wps.io.IGenerator;
 import org.n52.wps.io.IOHandler;
@@ -138,8 +141,26 @@ public class ExecuteRequestBuilder {
 			}else{
 				throw new WPSClientException("Encoding not supported");
 			}
-					ComplexDataType data = input.addNewData().addNewComplexData();
-					data.set(XmlObject.Factory.parse(stream));
+			ComplexDataType data = input.addNewData().addNewComplexData(); 
+
+		     if(mimeType.contains("xml")){ 
+		         data.set(XmlObject.Factory.parse(stream)); 
+		     }else{ 
+
+		         String text = ""; 
+
+		         int i = -1; 
+
+		         while((i = stream.read()) != -1){ 
+		             text = text + (char)i; 
+		         } 
+
+		         XmlString xml = XmlString.Factory.newInstance(); 
+
+		         xml.setStringValue(text); 
+
+		         data.set(xml); 
+		     } 
 					if (schema != null) {
 						data.setSchema(schema);
 					}

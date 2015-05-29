@@ -24,14 +24,17 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
- * Public License for more details.
- */
+ * Public License for more details.**/
 package org.n52.wps.client;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactoryConfigurationError;
 
 import net.opengis.ows.x11.ExceptionReportDocument.ExceptionReport;
 import net.opengis.wps.x100.DocumentOutputDefinitionType;
@@ -41,8 +44,13 @@ import net.opengis.wps.x100.OutputDataType;
 import net.opengis.wps.x100.OutputDescriptionType;
 import net.opengis.wps.x100.ProcessDescriptionType;
 
+import org.n52.wps.client.StaticDataHandlerRepository;
+import org.n52.wps.client.WPSClientException;
+import org.n52.wps.commons.XMLUtil;
 import org.n52.wps.io.IParser;
 import org.n52.wps.io.data.IData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * 
@@ -52,7 +60,8 @@ import org.n52.wps.io.data.IData;
  */
 public class ExecuteResponseAnalyser {
 	
-	
+
+	private static Logger LOGGER = LoggerFactory.getLogger(ExecuteResponseAnalyser.class);
 	
 	ProcessDescriptionType processDesc;
 	ExecuteDocument exec;
@@ -204,7 +213,21 @@ public class ExecuteResponseAnalyser {
 						}
 						
 					}else{
-						is = processOutput.getData().getComplexData().newInputStream();
+						String complexDataContent;
+						try {
+							complexDataContent = XMLUtil.nodeToString(processOutput.getData().getComplexData().getDomNode().getChildNodes().item(1));
+							if(complexDataContent == null || complexDataContent.equals("")){ 
+						        complexDataContent = XMLUtil 
+						                        .nodeToString(processOutput.getData() 
+						                                        .getComplexData().getDomNode() 
+						                                        .getChildNodes().item(0)); 
+						} 
+							is = new ByteArrayInputStream(complexDataContent.getBytes());
+						} catch (TransformerFactoryConfigurationError e) {
+							LOGGER.error(e.getMessage());
+						} catch (TransformerException e) {
+							LOGGER.error(e.getMessage());
+						}
 					}
 					
 				}
@@ -216,7 +239,7 @@ public class ExecuteResponseAnalyser {
 		
 		
 		if(parser != null) {
-			if(encoding.equalsIgnoreCase("base64")){
+			if(encoding != null && encoding.equalsIgnoreCase("base64")){
 				return parser.parseBase64(is, mimeType, schema);
 			}else{
 				return parser.parse(is, mimeType, schema);
