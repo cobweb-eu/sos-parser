@@ -64,6 +64,7 @@ import org.n52.wps.commons.XMLUtil;
 import org.n52.wps.io.data.GenericFileDataWithGT;
 import org.n52.wps.io.data.IData;
 import org.n52.wps.io.data.binding.complex.GTVectorDataBinding;
+import org.n52.wps.io.data.binding.complex.GenericFileDataWithGTBinding;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -83,6 +84,7 @@ public class GeoserverWFSGenerator extends AbstractGenerator {
 		
 		super();
 		this.supportedIDataTypes.add(GTVectorDataBinding.class);
+		this.supportedIDataTypes.add(GenericFileDataWithGTBinding.class);
 		
 		properties = WPSConfig.getInstance().getPropertiesForGeneratorClass(this.getClass().getName());
 		for(Property property : properties){
@@ -131,14 +133,19 @@ public class GeoserverWFSGenerator extends AbstractGenerator {
 	}
 	
 	private Document storeLayer(IData coll) throws HttpException, IOException, ParserConfigurationException{
-		GTVectorDataBinding gtData = (GTVectorDataBinding) coll;
+		
 		File file = null;
+		if(coll instanceof GTVectorDataBinding){
 		try {
+			GTVectorDataBinding gtData = (GTVectorDataBinding) coll;
 			GenericFileDataWithGT fileData = new GenericFileDataWithGT(gtData.getPayload());
 			file = fileData.getBaseFile(true);
 		} catch (IOException e1) {
 			e1.printStackTrace();
 			throw new RuntimeException("Error generating shp file for storage in WFS. Reason: " + e1);
+		}
+		}else if(coll instanceof GenericFileDataWithGTBinding){
+			file = ((GenericFileDataWithGTBinding)coll).getPayload().getBaseFile(true);
 		}
 		
 		//zip shp file
@@ -159,7 +166,8 @@ public class GeoserverWFSGenerator extends AbstractGenerator {
 		result = geoserverUploader.uploadShp(zipped, layerName);		
 		LOGGER.debug(result);
 				
-		String capabilitiesLink = "http://"+host+":"+port+"/geoserver/wfs?Service=WFS&Request=GetCapabilities&Version=1.1.0";
+		String capabilitiesLink = "http://" + host+":"+port+"/geoserver/wfs?Service=WFS&Request=GetCapabilities&Version=1.1.0";
+		LOGGER.warn("capabilities link " + capabilitiesLink);
 		//String directLink = geoserverBaseURL + "?Service=WFS&Request=GetFeature&Version=1.1.0&typeName=N52:"+file.getName().subSequence(0, file.getName().length()-4);
 		
 		//delete shp files

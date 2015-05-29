@@ -98,7 +98,7 @@ public class GeoServerUploader {
 	public String uploadShp(File file, String storeName) throws HttpException,
 			IOException {
 		String target = "http://" + host + ":" + port
-				+ "/geoserver/rest/workspaces/N52/datastores/" + storeName
+				+ "/geoserver/rest/workspaces/Post_QA/datastores/" + storeName
 				+ "/file.shp";
 		InputStream request = new BufferedInputStream(new FileInputStream(file));
 		String result = sendShpRequest(target, request, "PUT", username,
@@ -110,7 +110,7 @@ public class GeoServerUploader {
 	public String createWorkspace() throws HttpException, IOException {
 		String target = "http://" + host + ":" + port
 				+ "/geoserver/rest/workspaces";
-		String request = "<workspace><name>N52</name></workspace>";
+		String request = "<workspace><name>Post_QA</name></workspace>";
 		String result = sendRasterRequest(target, request, "POST", username,
 				password);
 		return result;
