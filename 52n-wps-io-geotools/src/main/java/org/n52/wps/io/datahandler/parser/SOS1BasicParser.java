@@ -41,11 +41,16 @@ import org.slf4j.LoggerFactory;
 /**
  * Class to handle the parsing of SOS V1 O&M observations
  * 
+ * 
  * @author Sebastian Clarke - Environment Systems 2015
  *
  */
 public class SOS1BasicParser extends AbstractParser {
 	private static Logger LOGGER = LoggerFactory.getLogger(SOS1BasicParser.class);
+	
+	private static final String SENTIMENT = "Sentiment:";
+	private static final String USER_ID = "User ID:";
+	private static final String TWEET = "Tweet:";
 	
 	protected SimpleFeatureType type;
 	protected SimpleFeatureBuilder featureBuilder;
@@ -87,20 +92,13 @@ public class SOS1BasicParser extends AbstractParser {
 				IllegalArgumentException ex = new IllegalArgumentException("Error parseing SOS XML:", e); 
 				LOGGER.error(ex.getMessage());
 				throw ex;
-			} catch (NoSuchAuthorityCodeException e) {
-				IllegalArgumentException ex = new IllegalArgumentException("Error parseing observations:", e);
-				LOGGER.error(ex.getMessage());
-				throw ex;
-			} catch (FactoryException e) {
-				IllegalArgumentException ex = new IllegalArgumentException("Error parseing observations:", e);
-				LOGGER.error(ex.getMessage());
-				throw ex;
 			}
+			
 			return parsedObservations;
 		}
 	}
 	
-	private GTVectorDataBinding parseObservations(ObservationCollectionDocument observationsDoc) throws XmlException, NoSuchAuthorityCodeException, FactoryException {
+	private GTVectorDataBinding parseObservations(ObservationCollectionDocument observationsDoc) throws XmlException {
 		// get the observations
 		ObservationCollectionType observations = observationsDoc.getObservationCollection();
 	
@@ -150,8 +148,24 @@ public class SOS1BasicParser extends AbstractParser {
 				PhenomenonPropertyType.class);
 		builder.add(testNullReturnName(observation.getFeatureOfInterest(), "featureOfInterest"),
 				FeaturePropertyType.class);
-		builder.add(testNullReturnName(observation.getResult(), "result"),
-				XmlObject.class);
+
+		// introspect the result to make it a bit more useful
+		XmlObject result = observation.getResult();
+		if(result != null) {
+			String rs = ((SimpleValue)result).getStringValue();
+			// test if the result looks like a tweet
+			if(rs.contains(SENTIMENT) && rs.contains(USER_ID) &&
+					rs.contains(TWEET)) {
+				// result is a tweet, add fields for individual tweet items
+				
+				builder.add("resultSentiment", double.class);
+				builder.add("resultUserID", String.class);
+				builder.add("resultTweet", String.class);
+			} else {
+				// result may or may not be a tweet, store the XmlObject
+				builder.add("result", XmlObject.class);
+			}
+		}
 		
 		if(observation.isSetResultTime()) {
 			builder.add("resultTime", TimeObjectPropertyType.class);
@@ -204,15 +218,47 @@ public class SOS1BasicParser extends AbstractParser {
 	 * @param observation {@code ObservationType} The observation as represented by O&amp;M v1.0
 	 * @return {@code SimpleFeature} a feature representing this observation
 	 * @throws XmlException if any required elements were not found during parsing
-	 * @throws FactoryException 
-	 * @throws NoSuchAuthorityCodeException 
 	 */
 	private SimpleFeature convertToFeature(ObservationType observation) throws XmlException {
 		featureBuilder.add(ifNullThrowParseException(observation.getSamplingTime(), "samplingTime"));
 		featureBuilder.add(ifNullThrowParseException(observation.getProcedure(), "procedure"));
 		featureBuilder.add(ifNullThrowParseException(observation.getObservedProperty(), "observedProperty"));
 		featureBuilder.add(ifNullThrowParseException(observation.getFeatureOfInterest(), "featureOfInterest"));
-		featureBuilder.add(ifNullThrowParseException(observation.getResult(), "result"));
+	
+		XmlObject result = observation.getResult();
+		if(result != null) {
+			String rs = ((SimpleValue)result).getStringValue();
+			// test if the result looks like a tweet
+			if(rs.contains(SENTIMENT) && rs.contains(USER_ID) &&
+					rs.contains(TWEET)) {
+				// result is a tweet, add individual tweet items
+				
+				int start = rs.indexOf(SENTIMENT) + SENTIMENT.length() + 1;
+				int end = rs.indexOf(' ', start);	// first space after Sentiment:
+				double sentiment = Double.valueOf(rs.substring(start, end).trim());
+				
+				featureBuilder.add(sentiment);
+				
+				start = rs.indexOf(USER_ID) + USER_ID.length() + 1;
+				end = rs.indexOf(' ', start);
+				String user_id = rs.substring(start, end).trim();
+				
+				featureBuilder.add(user_id);
+				
+				start = rs.indexOf(TWEET) + TWEET.length() + 1;
+				String tweet = rs.substring(start, rs.length()).trim();
+				
+				featureBuilder.add(tweet);
+			} else {
+				// result may or may not be a tweet, store the XmlObject
+				featureBuilder.add(result);
+			}
+		} else {
+			XmlException e = new XmlException("Could not parse result element");
+			LOGGER.error(e.getMessage());
+			throw e;
+		}
+		
 		if(observation.isSetResultTime()) {
 			featureBuilder.add(observation.getResultTime());
 		}
